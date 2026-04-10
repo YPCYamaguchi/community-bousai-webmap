@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>投稿の詳細 — 防災まち歩き</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+<header class="page-header">
+    <button class="btn-back" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i></button>
+    <h1>投稿の詳細</h1>
+</header>
+
+<div class="detail-page" id="detail-content">
+    <div class="empty-state" id="detail-loading">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <p>読み込み中...</p>
+    </div>
+</div>
+
+<!-- 下部ナビ -->
+<nav class="bottom-nav">
+    <a href="/"><i class="fa-solid fa-map"></i>地図</a>
+    <div class="nav-post-wrap"><a href="post.html" class="nav-post-btn"><i class="fa-solid fa-plus"></i></a></div>
+    <a href="list.html"><i class="fa-solid fa-list"></i>一覧</a>
+</nav>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!Auth.requireLogin()) return;
+    const session = Auth.get();
+    const postId = new URLSearchParams(location.search).get('id');
+    if (!postId) { location.href = 'list.html'; return; }
+
+    let post = null;
+
+    try {
+        const res = await API.getPosts();
+        post = (res.posts || []).find(p => p.id === postId);
+    } catch (e) { /* handled below */ }
+
+    const container = document.getElementById('detail-content');
+
+    if (!post) {
+        container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>投稿が見つかりません</p></div>';
+        return;
+    }
+
+    const cat = CATEGORIES[post.category] || CATEGORIES.other;
+    const isLiked = (post.liked_user_ids || []).includes(session.userId);
+
+    container.innerHTML = `
+        <div class="detail-top">
+            ${post.photo_thumb_url ? `
+            <div class="detail-photo-wrap">
+                <img class="detail-photo" id="detail-photo"
+                     src="${esc(post.photo_thumb_url)}"
+                     data-full="${esc(post.photo_full_url)}"
+                     alt="タップして拡大">
+                <span class="photo-expand-hint"><i class="fa-solid fa-expand"></i></span>
+            </div>` : ''}
+            <div class="detail-info">
+                <span class="detail-category" style="background:${cat.color}">
+                    <i class="fa-solid ${cat.icon}"></i> ${cat.name}
+                </span>
+                <h2 class="detail-title">${esc(post.title)}</h2>
+            </div>
+        </div>
+
+        ${post.tags && post.tags.length ? `<div class="detail-tags">${post.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+
+        ${post.description ? `<p class="detail-desc">${esc(post.description)}</p>` : ''}
+
+        <div class="detail-meta">
+            <i class="fa-solid fa-user"></i> ${esc(post.user_name)}${post.group ? ' / ' + esc(post.group) : ''}<br>
+            <i class="fa-regular fa-clock"></i> ${formatFull(post.timestamp)}<br>
+            <i class="fa-solid fa-location-dot"></i>
+            <a href="index?lat=${post.lat}&lng=${post.lng}&post=${post.id}">地図で見る</a>
+        </div>
+
+        <hr class="detail-divider">
+
+        <!-- いいね -->
+        <div class="like-section">
+            <button class="btn-like ${isLiked ? 'liked' : ''}" id="btn-like">
+                <i class="fa-solid fa-heart"></i>
+                <span id="like-label">いいね <span id="like-count">${post.like_count || 0}</span></span>
+            </button>
+            <div class="like-users" id="like-users">
+                ${(post.liked_by || []).length ? (post.liked_by.join(', ')) : ''}
+            </div>
+        </div>
+
+        <hr class="detail-divider">
+
+        <!-- コメント -->
+        <div class="comments-section">
+            <h3><i class="fa-solid fa-comment"></i> コメント (<span id="comment-count">${post.comment_count || 0}</span>)</h3>
+            <div id="comments-list">
+                ${(post.comments || []).map(c => commentHTML(c)).join('')}
+            </div>
+            <div class="comment-input">
+                <input type="text" id="comment-text" placeholder="コメントを入力..." maxlength="200">
+                <button id="btn-comment" disabled>送信</button>
+            </div>
+        </div>
+    `;
+
+    // --- 写真タップ → フル画像モーダル ---
+    const photoEl = document.getElementById('detail-photo');
+    if (photoEl && post.photo_full_url) {
+        photoEl.addEventListener('click', () => {
+            const overlay = document.createElement('div');
+            overlay.className = 'photo-fullscreen';
+            overlay.innerHTML = `
+                <div class="photo-fullscreen-loading"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                <img src="${esc(post.photo_full_url)}" alt="">
+                <button class="photo-fullscreen-close">&times;</button>
+            `;
+            document.body.appendChild(overlay);
+            const img = overlay.querySelector('img');
+            img.onload = () => overlay.querySelector('.photo-fullscreen-loading').remove();
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.classList.contains('photo-fullscreen-close')) {
+                    overlay.remove();
+                }
+            });
+        });
+    }
+
+    // --- いいね（楽観的UI更新） ---
+    document.getElementById('btn-like').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-like');
+        if (btn.dataset.sending) return;
+        btn.dataset.sending = '1';
+
+        // 即座にUIを更新（楽観的）
+        const wasLiked = btn.classList.contains('liked');
+        const countEl = document.getElementById('like-count');
+        const usersEl = document.getElementById('like-users');
+        const prevCount = parseInt(countEl.textContent) || 0;
+        const prevUsers = usersEl.textContent;
+
+        btn.classList.toggle('liked', !wasLiked);
+        countEl.textContent = wasLiked ? Math.max(0, prevCount - 1) : prevCount + 1;
+        if (!wasLiked) {
+            usersEl.textContent = prevUsers.trim()
+                ? prevUsers.trim() + ', ' + session.userName
+                : session.userName;
+        }
+        showToast(wasLiked ? 'いいねを取り消しました' : 'いいねしました');
+
+        // バックグラウンドでAPI送信
+        try {
+            const res = await API.toggleLike(postId, session.userId, session.userName, session.code);
+            if (res.status === 'ok') {
+                // サーバーの正確な値で上書き
+                countEl.textContent = res.like_count;
+                btn.classList.toggle('liked', res.liked);
+            } else {
+                // 失敗 → UIを戻す
+                btn.classList.toggle('liked', wasLiked);
+                countEl.textContent = prevCount;
+                usersEl.textContent = prevUsers;
+                showToast('エラーが発生しました');
+            }
+        } catch (e) {
+            btn.classList.toggle('liked', wasLiked);
+            countEl.textContent = prevCount;
+            usersEl.textContent = prevUsers;
+            showToast('通信エラーが発生しました');
+        }
+        delete btn.dataset.sending;
+    });
+
+    // --- コメント（ローディング表示 + 楽観的追加） ---
+    const commentText = document.getElementById('comment-text');
+    const btnComment = document.getElementById('btn-comment');
+    const btnCommentLabel = btnComment.textContent;
+
+    commentText.addEventListener('input', () => {
+        btnComment.disabled = !commentText.value.trim();
+    });
+
+    btnComment.addEventListener('click', async () => {
+        const text = commentText.value.trim();
+        if (!text) return;
+
+        // ローディング表示
+        btnComment.disabled = true;
+        btnComment.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        // 即座にコメントをUIに追加（楽観的）
+        const tempId = 'temp-' + Date.now();
+        const list = document.getElementById('comments-list');
+        list.insertAdjacentHTML('beforeend', commentHTML({
+            user_name: session.userName,
+            text: text,
+            timestamp: new Date().toISOString()
+        }, tempId));
+        const countEl = document.getElementById('comment-count');
+        countEl.textContent = parseInt(countEl.textContent) + 1;
+        commentText.value = '';
+        showToast('コメントを送信中...');
+
+        // バックグラウンドでAPI送信
+        try {
+            const res = await API.addComment(postId, session.userId, session.userName, text, session.code);
+            if (res.status === 'ok') {
+                showToast('コメントしました');
+            } else {
+                // 失敗 → 楽観的に追加したコメントを削除
+                const tempEl = document.getElementById(tempId);
+                if (tempEl) tempEl.remove();
+                countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+                commentText.value = text; // 入力を復元
+                showToast('エラーが発生しました');
+            }
+        } catch (e) {
+            const tempEl = document.getElementById(tempId);
+            if (tempEl) tempEl.remove();
+            countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+            commentText.value = text;
+            showToast('通信エラーが発生しました');
+        }
+        btnComment.innerHTML = btnCommentLabel;
+        btnComment.disabled = false;
+    });
+
+    function commentHTML(c, id) {
+        return `<div class="comment-item" ${id ? 'id="'+id+'"' : ''}>
+            <div class="comment-header">
+                <span>${esc(c.user_name)}</span>
+                <span>${formatFull(c.timestamp)}</span>
+            </div>
+            <div class="comment-text">${esc(c.text)}</div>
+        </div>`;
+    }
+
+    function formatFull(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = String(s);
+        return d.innerHTML;
+    }
+
+    function showToast(msg) {
+        // 既存のトーストを消す
+        document.querySelectorAll('.toast').forEach(t => t.remove());
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2500);
+    }
+});
+</script>
+</body>
+</html>

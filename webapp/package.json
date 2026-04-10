@@ -1,0 +1,10 @@
+{
+  "name": "community-bousai-webmap",
+  "version": "1.0.0",
+  "description": "自治会・町内会向け 防災ウェブマップ テンプレート",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve .",
+    "deploy": "netlify deploy --prod"
+  }
+}

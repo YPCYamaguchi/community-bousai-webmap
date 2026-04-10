@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>プロフィール — 防災まち歩き</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+<header class="page-header">
+    <button class="btn-back" onclick="location.href='/'"><i class="fa-solid fa-arrow-left"></i></button>
+    <h1>プロフィール</h1>
+</header>
+
+<div class="profile-page">
+    <div class="profile-card" id="profile-card">
+        <!-- JSで描画 -->
+    </div>
+</div>
+
+<!-- 下部ナビ -->
+<nav class="bottom-nav">
+    <a href="/"><i class="fa-solid fa-map"></i>地図</a>
+    <div class="nav-post-wrap"><a href="post.html" class="nav-post-btn"><i class="fa-solid fa-plus"></i></a></div>
+    <a href="list.html"><i class="fa-solid fa-list"></i>一覧</a>
+</nav>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!Auth.requireLogin()) return;
+    const session = Auth.get();
+
+    // 自分の投稿数を取得
+    let myPostCount = 0;
+    let myLikeCount = 0;
+    try {
+        const res = await API.getPosts();
+        const myPosts = (res.posts || []).filter(p => p.user_id === session.userId);
+        myPostCount = myPosts.length;
+        myLikeCount = myPosts.reduce((sum, p) => sum + (p.like_count || 0), 0);
+    } catch (e) { /* silent */ }
+
+    const loginDate = new Date(session.loginAt);
+    const loginStr = `${loginDate.getFullYear()}/${loginDate.getMonth()+1}/${loginDate.getDate()} ${loginDate.getHours()}:${String(loginDate.getMinutes()).padStart(2,'0')}`;
+
+    // セッション残り時間
+    const remaining = Math.max(0, Auth.SESSION_TTL - (Date.now() - session.loginAt));
+    const remainH = Math.floor(remaining / 3600000);
+    const remainM = Math.floor((remaining % 3600000) / 60000);
+
+    document.getElementById('profile-card').innerHTML = `
+        <div class="profile-avatar">
+            <i class="fa-solid fa-user"></i>
+        </div>
+        <h2 class="profile-name">${esc(session.userName)}</h2>
+        ${session.group ? `<span class="profile-group">グループ ${esc(session.group)}</span>` : ''}
+
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <span class="profile-stat-num">${myPostCount}</span>
+                <span class="profile-stat-label">投稿</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-num">${myLikeCount}</span>
+                <span class="profile-stat-label">もらったいいね</span>
+            </div>
+        </div>
+
+        <div class="profile-info-list">
+            <div class="profile-info-item">
+                <i class="fa-solid fa-clock"></i>
+                <div>
+                    <div class="profile-info-label">ログイン日時</div>
+                    <div class="profile-info-value">${loginStr}</div>
+                </div>
+            </div>
+            <div class="profile-info-item">
+                <i class="fa-solid fa-hourglass-half"></i>
+                <div>
+                    <div class="profile-info-label">セッション残り</div>
+                    <div class="profile-info-value">${remainH}時間${remainM}分</div>
+                </div>
+            </div>
+            <div class="profile-info-item">
+                <i class="fa-solid fa-key"></i>
+                <div>
+                    <div class="profile-info-label">参加コード</div>
+                    <div class="profile-info-value">${esc(session.code)}</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-logout" id="btn-logout">
+            <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+        </button>
+    `;
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        if (confirm('ログアウトしますか？')) {
+            Auth.logout();
+        }
+    });
+
+    function esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = String(s);
+        return d.innerHTML;
+    }
+});
+</script>
+</body>
+</html>

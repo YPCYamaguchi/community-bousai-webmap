@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>気づき一覧 — 防災まち歩き</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+<header class="page-header">
+    <button class="btn-back" onclick="location.href='/'"><i class="fa-solid fa-arrow-left"></i></button>
+    <h1>気づき一覧</h1>
+</header>
+
+<div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" data-filter="all">全て</button>
+    <button class="filter-tab" data-filter="danger"><i class="fa-solid fa-triangle-exclamation"></i> 危険</button>
+    <button class="filter-tab" data-filter="useful"><i class="fa-solid fa-thumbs-up"></i> 役立つ</button>
+    <button class="filter-tab" data-filter="other"><i class="fa-solid fa-comment-dots"></i> その他</button>
+</div>
+
+<div class="list-page">
+    <div class="post-cards" id="post-cards">
+        <div class="empty-state" id="loading-state">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <p>読み込み中...</p>
+        </div>
+    </div>
+</div>
+
+<!-- 下部ナビ -->
+<nav class="bottom-nav">
+    <a href="/"><i class="fa-solid fa-map"></i>地図</a>
+    <div class="nav-post-wrap"><a href="post.html" class="nav-post-btn"><i class="fa-solid fa-plus"></i></a></div>
+    <a href="list.html" class="active"><i class="fa-solid fa-list"></i>一覧</a>
+</nav>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!Auth.requireLogin()) return;
+
+    let allPosts = [];
+    let currentFilter = 'all';
+
+    // フィルタータブ
+    document.getElementById('filter-tabs').addEventListener('click', (e) => {
+        const tab = e.target.closest('.filter-tab');
+        if (!tab) return;
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderCards();
+    });
+
+    // データ取得（キャッシュ優先 + バックグラウンド更新）
+    function applyPosts(res) {
+        allPosts = (res.posts || []).sort((a, b) =>
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        renderCards();
+    }
+    try {
+        const res = await API.getPosts({
+            onUpdate: (freshRes) => applyPosts(freshRes)
+        });
+        applyPosts(res);
+    } catch (e) {
+        allPosts = [];
+        renderCards();
+    }
+
+    function renderCards() {
+        const container = document.getElementById('post-cards');
+        const filtered = currentFilter === 'all'
+            ? allPosts
+            : allPosts.filter(p => p.category === currentFilter);
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard"></i><p>投稿がありません</p></div>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(p => {
+            const cat = CATEGORIES[p.category] || CATEGORIES.other;
+            const time = formatTime(p.timestamp);
+            const tagsHtml = (p.tags || []).map(t => `<span>${esc(t)}</span>`).join('');
+            const thumbHtml = p.photo_thumb_url
+                ? `<img class="post-card-thumb" src="${esc(p.photo_thumb_url)}" alt="" loading="lazy">`
+                : '';
+            const group = p.group ? ` / ${esc(p.group)}` : '';
+
+            return `
+            <a class="post-card" href="detail?id=${esc(p.id)}">
+                <div class="post-card-header">
+                    <span class="post-card-cat" style="background:${cat.color}">
+                        <i class="fa-solid ${cat.icon}"></i>
+                    </span>
+                    <span class="post-card-title">${esc(p.title)}</span>
+                </div>
+                ${tagsHtml ? `<div class="post-card-tags">${tagsHtml}</div>` : ''}
+                <div class="post-card-meta">
+                    <span><i class="fa-solid fa-user"></i> ${esc(p.user_name)}${group}</span>
+                    <span><i class="fa-regular fa-clock"></i> ${time}</span>
+                    <span><i class="fa-solid fa-heart"></i> ${p.like_count || 0}</span>
+                    <span><i class="fa-solid fa-comment"></i> ${p.comment_count || 0}</span>
+                </div>
+                ${thumbHtml}
+            </a>`;
+        }).join('');
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = String(s);
+        return d.innerHTML;
+    }
+});
+</script>
+</body>
+</html>

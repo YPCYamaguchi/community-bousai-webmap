@@ -1,0 +1,68 @@
+{
+    "type": "FeatureCollection",
+    "name": "public_facilities",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 1,
+                "name": "羽沢東部自治会館・老松町内会館"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    139.623008894617499,
+                    35.449175593733514
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 2,
+                "name": "戸部警察署野毛山公園交番"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    139.623690752695552,
+                    35.446477226725783
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 3,
+                "name": "横浜市中央図書館"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    139.626435926246728,
+                    35.44739552967615
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 4,
+                "name": "横浜市立老松中学校"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    139.624248350325558,
+                    35.448184303004275
+                ]
+            }
+        }
+    ]
+}

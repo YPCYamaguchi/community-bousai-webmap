@@ -1,0 +1,528 @@
+/* ===============================================
+   防災ウェブマップ 共通CSS
+   =============================================== */
+
+:root {
+    /* カラーパレット（カラーユニバーサルデザイン配慮） */
+    --primary-color: #0056b3; /* 落ち着いた青 */
+    --secondary-color: #f8f9fa;
+    --text-color: #212529;
+    --text-light: #6c757d;
+    --border-color: #dee2e6;
+    
+    /* アラートカラー（赤色覚弱者にも見やすい赤・オレンジ系） */
+    --danger-color: #d32f2f;
+    --danger-bg: #ffebee;
+    
+    /* マップのカテゴリごとの色設定（見分けやすい色） */
+    --color-aed: #e53935;
+    --color-fire: #fb8c00;
+    --color-public: #1e88e5;
+    --color-rescue: rgba(46, 125, 50, 0.4); /* 緑・半透明 */
+    --color-landslide: rgba(211, 47, 47, 0.2);
+    --color-slope: rgba(251, 140, 0, 0.2);
+
+    /* タイポグラフィ */
+    --font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-size-base: 16px; /* やや大きめ */
+    
+    /* シャドウと角丸（安心感のあるデザイン） */
+    --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    --border-radius: 8px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    color: var(--text-color);
+    background-color: var(--secondary-color);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ユーティリティ */
+.hidden {
+    display: none !important;
+}
+
+/* ===============================================
+   ヘッダー
+   =============================================== */
+.app-header {
+    background-color: var(--primary-color);
+    color: #fff;
+    padding: 12px 20px;
+    box-shadow: var(--box-shadow);
+    z-index: 1000;
+    flex: none;
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-header h1 {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.menu-toggle-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.btn-info {
+    background-color: transparent;
+    border: 2px solid #fff;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-info:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+/* ===============================================
+   注意書きバナー & 概要セクション
+   =============================================== */
+.emergency-banner {
+    background-color: var(--danger-color);
+    color: #fff;
+    text-align: center;
+    padding: 8px 10px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    flex: none;
+}
+
+.outline-section {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.outline-content {
+    background: #fff;
+    padding: 25px;
+    border-radius: var(--border-radius);
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.outline-content h2 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 5px;
+}
+
+.outline-content p {
+    margin-bottom: 15px;
+}
+
+.alert-text {
+    color: var(--danger-color);
+    background: var(--danger-bg);
+    padding: 10px;
+    border-radius: var(--border-radius);
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.8rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--text-light);
+}
+
+.outline-content h3 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.info-divider {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 15px 0;
+}
+
+.meta-text {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 5px !important;
+}
+
+.outline-content {
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+/* ===============================================
+   メインレイアウト (PC: 地図 + サイド、Mobile: 縦積み)
+   =============================================== */
+.main-container {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    overflow: hidden; /* Scroll inside children */
+    position: relative;
+    height: 100%;
+}
+
+.map-section {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.map-container {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+}
+
+.side-panel {
+    width: 350px;
+    background-color: #fff;
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+/* ===============================================
+   検索とレイヤー切り替えUI
+   =============================================== */
+.search-container {
+    position: absolute;
+    top: 15px;
+    left: 50px; /* Leafletズームボタンを避ける */
+    z-index: 500;
+    display: flex;
+    background: #fff;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    width: 250px;
+}
+
+#search-input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+}
+
+#search-btn {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    width: 45px;
+    cursor: pointer;
+}
+
+.controls-card, .facility-list-card {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.controls-card h3, .facility-list-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.controls-card hr {
+    border: 0;
+    border-top: 1px dashed var(--border-color);
+    margin: 15px 0;
+}
+
+/* レイヤートグルスイッチ */
+.layer-toggles .toggle-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+
+.layer-toggles .toggle-item span.icon-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* トグルボタン（IOSスタイル風） */
+.switch {
+    width: 50px;
+    height: 26px;
+    background-color: #ccc;
+    border-radius: 26px;
+    position: relative;
+    transition: 0.3s;
+}
+
+.switch::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.toggle-item.active .switch {
+    background-color: var(--primary-color);
+}
+
+.toggle-item.active .switch::after {
+    left: 27px;
+}
+
+.basemap-toggles .radio-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* ===============================================
+   施設一覧タブ
+   =============================================== */
+.tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 5px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    border-bottom: 3px solid var(--primary-color);
+    margin-bottom: -2px;
+}
+
+.tab-content {
+    min-height: 200px;
+}
+
+.facility-ul {
+    display: none;
+    list-style: none;
+}
+
+.facility-ul.active {
+    display: block;
+}
+
+.facility-ul li {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.facility-ul li:hover {
+    background-color: var(--secondary-color);
+}
+
+/* ===============================================
+   レスキューゾーン ラベル表示
+   =============================================== */
+.rescue-zone-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000,
+         0px  0px 4px #000; /* 白文字＋黒フチで視認性を確保 */
+}
+.rescue-zone-label::before {
+    display: none !important; /* ツールチップの三角形（尻尾）を消す */
+}
+
+/* ===============================================
+   サイドパネル オーバーレイ背景（スマホ）
+   =============================================== */
+.side-panel-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 999;
+}
+
+.side-panel-overlay.active {
+    display: block;
+}
+
+/* ===============================================
+   現在位置ボタン
+   =============================================== */
+.locate-btn {
+    position: absolute;
+    bottom: 100px;
+    right: 10px;
+    z-index: 500;
+    width: 40px;
+    height: 40px;
+    background: #fff;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    box-shadow: var(--box-shadow);
+}
+
+.locate-btn:hover {
+    background: #f0f0f0;
+}
+
+.locate-btn.locating {
+    color: var(--danger-color);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ===============================================
+   モバイルレスポンシブ
+   =============================================== */
+@media (max-width: 768px) {
+    .menu-toggle-btn {
+        display: block;
+    }
+
+    /* ヘッダー: コンパクト化 */
+    .app-header {
+        padding: 8px 12px;
+    }
+
+    .app-header h1 {
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .btn-info {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* バナーもコンパクト化 */
+    .emergency-banner {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+
+    .main-container {
+        flex-direction: column;
+    }
+
+    .map-section {
+        height: 100%;
+        flex: 1;
+    }
+
+    /* サイドパネルをドロワーメニュー（左からスライド）にする */
+    .side-panel {
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 85%;
+        max-width: 350px;
+        height: 100%;
+        border-left: none;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        transition: left 0.3s ease-in-out;
+    }
+
+    .side-panel.open {
+        left: 0;
+    }
+
+    .search-container {
+        left: 10px;
+        top: 10px;
+        width: calc(100% - 20px);
+    }
+}

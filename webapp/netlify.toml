@@ -1,0 +1,32 @@
+[build]
+  publish = "."
+
+# GeoJSONファイルの長期キャッシュ（データ更新時はファイル名変更で対応）
+[[headers]]
+  for = "/geojson/*.geojson"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "application/geo+json; charset=utf-8"
+
+# CSS/JSの適度なキャッシュ
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# セキュリティヘッダー
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# 注意: SPA用リダイレクト（/*→index.html）は削除済み。
+# 各ページ（login.html, post.html, list.html, detail.html）は
+# 個別のHTMLファイルとして配信するため、ワイルドカードリダイレクトは不要。

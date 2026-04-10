@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ログイン — 防災まち歩き</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <script src="js/config.js"></script>
+    <script>document.title = 'ログイン — ' + DISTRICT.name + ' 防災まち歩き';</script>
+</head>
+<body class="page-body">
+
+<div class="login-page">
+    <!-- 新規ログイン画面 -->
+    <div id="login-new" class="login-card">
+        <div class="login-header">
+            <i class="fa-solid fa-shield-halved login-icon"></i>
+            <h1 id="login-district-name"></h1>
+            <p>防災まち歩き</p>
+        </div>
+
+        <div class="form-group">
+            <label for="input-code">参加コード</label>
+            <input type="text" id="input-code" placeholder="参加コードを入力" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label for="input-name">ユーザー名（任意）</label>
+            <input type="text" id="input-name" placeholder="生成中..." autocomplete="off" maxlength="20">
+            <div class="name-suggest">
+                <button type="button" id="btn-regenerate" class="btn-link">
+                    <i class="fa-solid fa-arrows-rotate"></i> 別の名前にする
+                </button>
+            </div>
+            <div id="name-status" class="name-status"></div>
+        </div>
+
+        <div class="form-group">
+            <label>グループ（任意）</label>
+            <div class="btn-group" id="group-buttons">
+                <!-- JS で動的に生成 -->
+            </div>
+        </div>
+
+        <button type="button" id="btn-login" class="btn-primary" disabled>
+            参加する
+        </button>
+        <div id="login-error" class="error-msg hidden"></div>
+    </div>
+
+    <!-- 再ログイン画面 -->
+    <div id="login-relogin" class="login-card hidden">
+        <div class="login-header">
+            <i class="fa-solid fa-shield-halved login-icon"></i>
+            <h1>おかえりなさい！</h1>
+            <p id="relogin-name" class="relogin-name"></p>
+        </div>
+
+        <div class="form-group">
+            <label for="relogin-code">参加コード</label>
+            <input type="text" id="relogin-code" placeholder="参加コードを入力" autocomplete="off">
+        </div>
+
+        <button type="button" id="btn-relogin" class="btn-primary">
+            再ログインする
+        </button>
+        <div id="relogin-error" class="error-msg hidden"></div>
+
+        <button type="button" id="btn-switch-new" class="btn-link btn-switch">
+            別のユーザーでログイン
+        </button>
+    </div>
+
+    <!-- ローディング -->
+    <div id="login-loading" class="login-loading hidden">
+        <i class="fa-solid fa-spinner fa-spin"></i> 処理中...
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/username-generator.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // 地区名を注入
+    document.getElementById('login-district-name').textContent = DISTRICT.name;
+
+    // グループボタンを動的に生成
+    const groupContainer = document.getElementById('group-buttons');
+    GROUPS.forEach(g => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-choice';
+        btn.dataset.value = g;
+        btn.textContent = g;
+        groupContainer.appendChild(btn);
+    });
+
+    // 既にアクティブセッションがあれば地図へ
+    if (Auth.isSessionActive()) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    const session = Auth.get();
+    const isRelogin = Auth.canRelogin();
+
+    // --- 再ログイン画面 ---
+    if (isRelogin) {
+        document.getElementById('login-new').classList.add('hidden');
+        document.getElementById('login-relogin').classList.remove('hidden');
+        document.getElementById('relogin-name').textContent = '\ud83d\udc64 ' + session.userName;
+    }
+
+    // --- 新規ログイン ---
+    let selectedGroup = '';
+    let suggestedName = '';
+    let nameAvailable = false;
+
+    const inputCode = document.getElementById('input-code');
+    const inputName = document.getElementById('input-name');
+    const nameStatus = document.getElementById('name-status');
+    const btnLogin = document.getElementById('btn-login');
+    const loginError = document.getElementById('login-error');
+
+    // グループ選択
+    document.getElementById('group-buttons').addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-choice');
+        if (!btn) return;
+        document.querySelectorAll('#group-buttons .btn-choice').forEach(b => b.classList.remove('active'));
+        if (selectedGroup === btn.dataset.value) {
+            selectedGroup = '';
+        } else {
+            btn.classList.add('active');
+            selectedGroup = btn.dataset.value;
+        }
+    });
+
+    // 名前の自動生成
+    async function generateName() {
+        inputName.value = '';
+        inputName.placeholder = '生成中...';
+        nameAvailable = false;
+        updateLoginButton();
+
+        suggestedName = await UserNameGenerator.generateUnique();
+        inputName.value = suggestedName;
+        inputName.placeholder = '';
+        nameAvailable = true;
+        nameStatus.textContent = '\u2713 利用可能';
+        nameStatus.className = 'name-status ok';
+        updateLoginButton();
+    }
+    generateName();
+
+    document.getElementById('btn-regenerate').addEventListener('click', generateName);
+
+    // ユーザー名の重複チェック（手動入力時）
+    let checkTimer;
+    inputName.addEventListener('input', () => {
+        nameAvailable = false;
+        nameStatus.textContent = '';
+        nameStatus.className = 'name-status';
+        updateLoginButton();
+
+        clearTimeout(checkTimer);
+        const val = inputName.value.trim();
+        if (!val) {
+            nameAvailable = false;
+            nameStatus.textContent = '名前を入力するか「別の名前にする」をタップ';
+            nameStatus.className = 'name-status';
+            updateLoginButton();
+            return;
+        }
+        checkTimer = setTimeout(async () => {
+            nameStatus.textContent = '確認中...';
+            const res = await API.checkUserName(val);
+            if (inputName.value.trim() !== val) return;
+            if (res.available) {
+                nameStatus.textContent = '\u2713 利用可能';
+                nameStatus.className = 'name-status ok';
+                nameAvailable = true;
+            } else {
+                nameStatus.textContent = '\u2717 この名前は既に使用されています';
+                nameStatus.className = 'name-status ng';
+                nameAvailable = false;
+            }
+            updateLoginButton();
+        }, 500);
+    });
+
+    inputCode.addEventListener('input', updateLoginButton);
+
+    function updateLoginButton() {
+        const codeOk = inputCode.value.trim().length > 0;
+        const nameOk = nameAvailable && inputName.value.trim().length > 0;
+        btnLogin.disabled = !(codeOk && nameOk);
+    }
+
+    // ログイン実行
+    btnLogin.addEventListener('click', async () => {
+        const code = inputCode.value.trim();
+        const name = inputName.value.trim();
+
+        loginError.classList.add('hidden');
+        showLoading(true);
+
+        try {
+            const res = await API.registerUser(name, selectedGroup, code);
+            if (res.status === 'ok') {
+                Auth.save(res.user_id, name, selectedGroup, code);
+                window.location.href = 'index.html';
+            } else if (res.message === 'invalid_code') {
+                showError(loginError, '参加コードが正しくありません');
+            } else if (res.message === 'username_taken') {
+                showError(loginError, 'このユーザー名は既に使われています');
+                nameAvailable = false;
+                updateLoginButton();
+            } else {
+                showError(loginError, 'エラーが発生しました');
+            }
+        } catch (e) {
+            showError(loginError, '通信エラーが発生しました');
+        }
+        showLoading(false);
+    });
+
+    // --- 再ログイン ---
+    const reloginCode = document.getElementById('relogin-code');
+    const reloginError = document.getElementById('relogin-error');
+
+    document.getElementById('btn-relogin').addEventListener('click', async () => {
+        const code = reloginCode.value.trim();
+        if (!code) return;
+
+        reloginError.classList.add('hidden');
+        showLoading(true);
+
+        try {
+            const res = await API.relogin(session.userId, code);
+            if (res.status === 'ok') {
+                Auth.save(session.userId, res.user_name, res.group, code);
+                window.location.href = 'index.html';
+            } else if (res.message === 'invalid_code') {
+                showError(reloginError, '参加コードが正しくありません');
+            } else if (res.message === 'user_not_found') {
+                showError(reloginError, 'ユーザーが見つかりません。新規ログインしてください');
+            } else {
+                showError(reloginError, 'エラーが発生しました');
+            }
+        } catch (e) {
+            showError(reloginError, '通信エラーが発生しました');
+        }
+        showLoading(false);
+    });
+
+    // 別のユーザーでログイン
+    document.getElementById('btn-switch-new').addEventListener('click', () => {
+        Auth.clearAll();
+        document.getElementById('login-relogin').classList.add('hidden');
+        document.getElementById('login-new').classList.remove('hidden');
+    });
+
+    function showLoading(on) {
+        document.getElementById('login-loading').classList.toggle('hidden', !on);
+    }
+    function showError(el, msg) {
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
+});
+</script>
+</body>
+</html>

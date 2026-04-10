@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>気づきを投稿 — 防災まち歩き</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+<header class="page-header">
+    <button class="btn-back" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i></button>
+    <h1>気づきを投稿</h1>
+</header>
+
+<div class="post-form">
+    <!-- 写真 -->
+    <div class="photo-area" id="photo-area">
+        <div class="photo-placeholder" id="photo-placeholder">
+            <i class="fa-solid fa-camera"></i>
+            タップして撮影・選択
+        </div>
+        <img id="photo-preview" class="hidden" alt="プレビュー">
+        <button type="button" id="photo-remove" class="photo-remove hidden">&times;</button>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden">
+    <div class="photo-buttons">
+        <button type="button" id="btn-camera"><i class="fa-solid fa-camera"></i> 撮影</button>
+        <button type="button" id="btn-gallery"><i class="fa-solid fa-image"></i> ギャラリー</button>
+    </div>
+
+    <!-- タイトル -->
+    <div class="form-group" style="margin-top:20px">
+        <label for="post-title">タイトル <span style="color:#e53935">*</span></label>
+        <input type="text" id="post-title" placeholder="気づきの要約" maxlength="50">
+    </div>
+
+    <!-- 分類 -->
+    <div class="form-group">
+        <label>分類 <span style="color:#e53935">*</span></label>
+        <div class="btn-group" id="category-buttons">
+            <button type="button" class="btn-choice cat-danger" data-value="danger">
+                <i class="fa-solid fa-triangle-exclamation"></i> 危険
+            </button>
+            <button type="button" class="btn-choice cat-useful" data-value="useful">
+                <i class="fa-solid fa-thumbs-up"></i> 役立つ
+            </button>
+            <button type="button" class="btn-choice cat-other" data-value="other">
+                <i class="fa-solid fa-comment-dots"></i> その他
+            </button>
+        </div>
+    </div>
+
+    <!-- タグ -->
+    <div class="form-group">
+        <label>タグ（複数選択可）</label>
+        <div class="tag-chips" id="tag-chips"></div>
+        <input type="text" id="tag-other-input" class="tag-other-input hidden" placeholder="その他のタグ名" maxlength="20">
+    </div>
+
+    <!-- コメント -->
+    <div class="form-group">
+        <label for="post-comment">コメント（任意）</label>
+        <textarea id="post-comment" placeholder="詳細な説明" maxlength="300" rows="3"></textarea>
+    </div>
+
+    <!-- 位置 -->
+    <div class="form-group">
+        <label><i class="fa-solid fa-location-dot"></i> 位置</label>
+        <div class="minimap-container" id="minimap"></div>
+        <div class="location-text" id="location-text">位置を取得中...</div>
+    </div>
+
+    <!-- 送信 -->
+    <button type="button" id="btn-submit" class="btn-primary" disabled>
+        投稿する
+    </button>
+    <div id="submit-error" class="error-msg hidden"></div>
+</div>
+
+<!-- 送信中 -->
+<div id="submit-overlay" class="submit-overlay hidden">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem"></i>
+    投稿中...
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    if (!Auth.requireLogin()) return;
+    const session = Auth.get();
+
+    // --- 写真 ---
+    let photoFile = null;
+    const photoInput = document.getElementById('photo-input');
+    const photoPreview = document.getElementById('photo-preview');
+    const photoPlaceholder = document.getElementById('photo-placeholder');
+    const photoArea = document.getElementById('photo-area');
+    const photoRemove = document.getElementById('photo-remove');
+
+    let postLat = null, postLng = null;
+    let selectedCategory = '';
+    const btnSubmit = document.getElementById('btn-submit');
+    const titleInput = document.getElementById('post-title');
+
+    function updateSubmitButton() {
+        btnSubmit.disabled = !(titleInput.value.trim() && selectedCategory && postLat !== null);
+    }
+    titleInput.addEventListener('input', updateSubmitButton);
+
+    document.getElementById('btn-camera').addEventListener('click', () => {
+        photoInput.setAttribute('capture', 'environment');
+        photoInput.click();
+    });
+    document.getElementById('btn-gallery').addEventListener('click', () => {
+        photoInput.removeAttribute('capture');
+        photoInput.click();
+    });
+    photoArea.addEventListener('click', (e) => {
+        if (e.target === photoRemove) return;
+        if (!photoFile) photoInput.click();
+    });
+
+    photoInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            photoFile = e.target.files[0];
+            const url = URL.createObjectURL(photoFile);
+            photoPreview.src = url;
+            photoPreview.classList.remove('hidden');
+            photoPlaceholder.classList.add('hidden');
+            photoRemove.classList.remove('hidden');
+            photoArea.classList.add('has-photo');
+        }
+    });
+    photoRemove.addEventListener('click', (e) => {
+        e.stopPropagation();
+        photoFile = null;
+        photoPreview.classList.add('hidden');
+        photoPlaceholder.classList.remove('hidden');
+        photoRemove.classList.add('hidden');
+        photoArea.classList.remove('has-photo');
+        photoInput.value = '';
+    });
+
+    // --- 分類 ---
+    document.getElementById('category-buttons').addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-choice');
+        if (!btn) return;
+        document.querySelectorAll('#category-buttons .btn-choice').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCategory = btn.dataset.value;
+        updateSubmitButton();
+    });
+
+    // --- タグ ---
+    const selectedTags = new Set();
+    const tagChips = document.getElementById('tag-chips');
+    const tagOtherInput = document.getElementById('tag-other-input');
+
+    TAGS.forEach(tag => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = tag;
+        chip.dataset.tag = tag;
+        chip.addEventListener('click', () => {
+            chip.classList.toggle('active');
+            if (chip.classList.contains('active')) {
+                selectedTags.add(tag);
+            } else {
+                selectedTags.delete(tag);
+            }
+            tagOtherInput.classList.toggle('hidden', !selectedTags.has('その他'));
+        });
+        tagChips.appendChild(chip);
+    });
+
+    // --- 位置（ミニマップ） ---
+    const defaultCenter = typeof DEFAULT_POST_CENTER !== 'undefined'
+        ? DEFAULT_POST_CENTER : CONFIG.map.center;
+    const defaultZoom = typeof DEFAULT_POST_ZOOM !== 'undefined'
+        ? DEFAULT_POST_ZOOM : 16;
+
+    const locText = document.getElementById('location-text');
+
+    const minimap = L.map('minimap', {
+        center: defaultCenter, zoom: defaultZoom,
+        zoomControl: false, attributionControl: false
+    });
+    L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png').addTo(minimap);
+    const posMarker = L.marker(defaultCenter, { draggable: true }).addTo(minimap);
+
+    function setPosition(lat, lng, msg) {
+        postLat = lat;
+        postLng = lng;
+        minimap.setView([lat, lng], Math.max(minimap.getZoom(), 17));
+        posMarker.setLatLng([lat, lng]);
+        locText.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}${msg}`;
+        updateSubmitButton();
+    }
+
+    posMarker.on('dragend', () => {
+        const p = posMarker.getLatLng();
+        setPosition(p.lat, p.lng, '（手動設定）');
+    });
+
+    const isSecureContext = window.isSecureContext;
+    let gpsFirstFix = false;
+    let userDragged = false;
+    posMarker.on('dragstart', () => { userDragged = true; });
+
+    function fallbackToDefault(reason) {
+        postLat = defaultCenter[0];
+        postLng = defaultCenter[1];
+        locText.innerHTML = reason +
+            '<br><small>ピンをドラッグして正しい位置に設定してください</small>';
+        updateSubmitButton();
+    }
+
+    if (!navigator.geolocation || !isSecureContext) {
+        const reason = !isSecureContext
+            ? '\u26a0 HTTP接続のため位置情報を取得できません'
+            : 'GPS非対応の端末です';
+        fallbackToDefault(reason);
+    } else {
+        postLat = defaultCenter[0];
+        postLng = defaultCenter[1];
+        locText.textContent = '\ud83d\udccd 位置を取得中...';
+        updateSubmitButton();
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                if (!gpsFirstFix) {
+                    gpsFirstFix = true;
+                    setPosition(pos.coords.latitude, pos.coords.longitude,
+                        '（GPS取得済み・ピンをドラッグで調整）');
+                }
+            },
+            (err) => {
+                console.log('Geolocation error:', err.code, err.message);
+                fallbackToDefault('位置情報を取得できませんでした');
+            },
+            { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
+        );
+
+        navigator.geolocation.watchPosition(
+            (pos) => {
+                if (!userDragged && pos.coords.accuracy < 100) {
+                    gpsFirstFix = true;
+                    setPosition(pos.coords.latitude, pos.coords.longitude,
+                        `（GPS精度: ${Math.round(pos.coords.accuracy)}m・ピンをドラッグで調整）`);
+                }
+            },
+            () => {},
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+        );
+    }
+    setTimeout(() => minimap.invalidateSize(), 300);
+
+    btnSubmit.addEventListener('click', async () => {
+        document.getElementById('submit-overlay').classList.remove('hidden');
+        document.getElementById('submit-error').classList.add('hidden');
+
+        try {
+            let photoFull = '', photoThumb = '';
+            if (photoFile) {
+                photoFull = await resizeImage(photoFile, 1920);
+                photoThumb = await resizeImage(photoFile, 320);
+            }
+
+            const tags = [...selectedTags];
+            const otherIdx = tags.indexOf('その他');
+            if (otherIdx >= 0 && tagOtherInput.value.trim()) {
+                tags[otherIdx] = tagOtherInput.value.trim();
+            }
+
+            const res = await API.addPost({
+                lat: postLat,
+                lng: postLng,
+                category: selectedCategory,
+                tags: tags,
+                title: titleInput.value.trim(),
+                description: document.getElementById('post-comment').value.trim(),
+                photo_full: photoFull,
+                photo_thumb: photoThumb,
+                user_id: session.userId,
+                user_name: session.userName,
+                group: session.group,
+                code: session.code
+            });
+
+            if (res.status === 'ok') {
+                sessionStorage.setItem('toast', '投稿しました！');
+                window.location.href = 'index.html';
+            } else {
+                throw new Error(res.message || 'unknown');
+            }
+        } catch (e) {
+            document.getElementById('submit-error').textContent = '投稿に失敗しました: ' + e.message;
+            document.getElementById('submit-error').classList.remove('hidden');
+            document.getElementById('submit-overlay').classList.add('hidden');
+        }
+    });
+
+    function resizeImage(file, maxSize) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+});
+</script>
+</body>
+</html>
