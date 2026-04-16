@@ -90,7 +90,7 @@ const CONFIG = {
             file: "geojson/aed.geojson",
             color: "#e53935",
             iconClass: "fa-heart-pulse",
-            listTarget: "list-aed",
+            listLabel: "AED",
             visible: true
         },
         {
@@ -100,7 +100,7 @@ const CONFIG = {
             file: "geojson/fire_equip.geojson",
             color: "#fb8c00",
             iconClass: "fa-fire-extinguisher",
-            listTarget: "list-fire",
+            listLabel: "消火栓",
             visible: true
         },
         {
@@ -110,7 +110,7 @@ const CONFIG = {
             file: "geojson/public_facilities.geojson",
             color: "#1e88e5",
             iconClass: "fa-building",
-            listTarget: "list-public",
+            listLabel: "公共施設",
             visible: true
         },
         {
@@ -120,6 +120,7 @@ const CONFIG = {
             file: "geojson/rescue_zones.geojson",
             color: "#2e7d32",
             fillOpacity: 0.3,
+            fitBounds: true,
             visible: false
         },
         // --------------------------------------------------

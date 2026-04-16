@@ -32,20 +32,39 @@ Google Apps Script のウェブアプリ URL を設定します。
 ### CONFIG.layers（GeoJSONレイヤー）
 
 レイヤーの追加・削除・変更が可能です。
+**`index.html` の編集は不要です** — 施設一覧タブやトグルUIは `config.js` の設定から自動生成されます。
 
 ```javascript
 {
-    id: "unique_id",           // 一意のID
-    name: "表示名",             // UI上の名前
-    type: "point",             // "point" or "polygon"
-    file: "geojson/xxx.geojson",
-    color: "#e53935",          // マーカー/ポリゴンの色
+    id: "unique_id",           // (必須) 一意のID
+    name: "表示名",             // (必須) サイドパネルのトグルに表示する名前
+    type: "point",             // (必須) "point" or "polygon"
+    file: "geojson/xxx.geojson", // (必須) GeoJSON ファイルパス
+    color: "#e53935",          // (必須) マーカー/ポリゴンの色
     iconClass: "fa-building",  // Font Awesome アイコン（point のみ）
-    listTarget: "list-xxx",    // 施設一覧のリストID（point のみ）
     fillOpacity: 0.3,          // 塗り潰し透明度（polygon のみ）
-    visible: true              // 初期表示状態
+    visible: true,             // 初期表示状態（省略時 false）
+    listLabel: "公共施設",      // 施設一覧タブのラベル（省略→一覧に出さない）
+    requireLogin: false,       // true にするとログイン時のみ表示（省略時 false）
+    fitBounds: false           // true にすると初期表示時にこのレイヤーの範囲にフィット（省略時 false）
 }
 ```
+
+#### プロパティ詳細
+
+| プロパティ | 必須 | 説明 |
+|-----------|:----:|------|
+| `id` | ○ | レイヤーの一意な識別子 |
+| `name` | ○ | サイドパネルのトグルに表示する名前 |
+| `type` | ○ | `"point"` または `"polygon"` |
+| `file` | ○ | GeoJSON ファイルパス |
+| `color` | ○ | マーカー / ポリゴンの色 |
+| `iconClass` | | Font Awesome アイコンクラス（point のみ） |
+| `fillOpacity` | | 塗り潰し透明度（polygon のみ） |
+| `visible` | | `true` で初期表示ON。省略時 `false` |
+| `listLabel` | | 施設一覧タブのラベル。省略するとそのレイヤーは一覧に表示されない。同じ値を複数レイヤーに指定すると1つのタブに統合される |
+| `requireLogin` | | `true` にするとログイン時のみトグル・地図・一覧に表示。省略時 `false` |
+| `fitBounds` | | `true` にすると初期表示時にこのレイヤーの範囲にフィット。複数指定時は全体を包含。省略時 `false` |
 
 ### CATEGORIES / TAGS / GROUPS
 
