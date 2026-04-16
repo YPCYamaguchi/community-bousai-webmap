@@ -106,6 +106,22 @@ const CONFIG = {
     //    ※ ダウンロード後、対象地区の範囲でクリップし GeoJSON に変換
     //    ※ 詳細は docs/CUSTOMIZATION.md 参照
     // ============================================================
+    // ============================================================
+    //  GeoJSON レイヤー定義 — プロパティ一覧
+    //
+    //  id          : (必須) レイヤーの一意な識別子
+    //  name        : (必須) サイドパネルのトグルに表示する名前
+    //  type        : (必須) "point" | "polygon"
+    //  file        : (必須) GeoJSON ファイルパス
+    //  color       : (必須) マーカー / ポリゴンの色
+    //  iconClass   : (point のみ) Font Awesome アイコンクラス
+    //  fillOpacity : (polygon のみ) 塗りの不透明度
+    //  visible     : 初期表示状態（省略時 false）
+    //  listLabel   : 施設一覧タブに表示する場合のタブ名
+    //                省略 → 施設一覧に出さない
+    //                同じ listLabel を複数レイヤーに指定 → 1つのタブに統合
+    //  requireLogin: true にするとログイン時のみ表示（省略時 false）
+    // ============================================================
     layers: [
         // --------------------------------------------------
         //  地区独自データ（各自治会で作成）
@@ -117,7 +133,7 @@ const CONFIG = {
         //     file: "geojson/aed.geojson",
         //     color: "#e53935",
         //     iconClass: "fa-heart-pulse",
-        //     listTarget: "list-aed",
+        //     listLabel: "AED",
         //     visible: true
         // },
         // {
@@ -127,7 +143,7 @@ const CONFIG = {
         //     file: "geojson/fire_equip.geojson",
         //     color: "#fb8c00",
         //     iconClass: "fa-fire-extinguisher",
-        //     listTarget: "list-fire",
+        //     listLabel: "消火栓",
         //     visible: true
         // },
         // {
@@ -137,7 +153,7 @@ const CONFIG = {
         //     file: "geojson/public_facilities.geojson",
         //     color: "#1e88e5",
         //     iconClass: "fa-building",
-        //     listTarget: "list-public",
+        //     listLabel: "公共施設",
         //     visible: true
         // },
         // {

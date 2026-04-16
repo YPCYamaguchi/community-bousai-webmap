@@ -126,19 +126,11 @@
                 </div>
             </div>
 
-            <!-- 4. 施設一覧セクション -->
+            <!-- 4. 施設一覧セクション（タブは config.js の listLabel から動的生成） -->
             <div class="facility-list-card">
                 <h3><i class="fa-solid fa-list"></i> 施設一覧</h3>
-                <div class="tabs">
-                    <button class="tab-btn active" data-target="list-public">公共施設</button>
-                    <button class="tab-btn" data-target="list-aed">AED</button>
-                    <button class="tab-btn" data-target="list-fire">消火栓</button>
-                </div>
-                <div class="tab-content">
-                    <ul id="list-public" class="facility-ul active"></ul>
-                    <ul id="list-aed" class="facility-ul"></ul>
-                    <ul id="list-fire" class="facility-ul"></ul>
-                </div>
+                <div class="tabs" id="facility-tabs"></div>
+                <div class="tab-content" id="facility-tab-content"></div>
             </div>
         </aside>
     </main>

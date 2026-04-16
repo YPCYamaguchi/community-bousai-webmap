@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     basemapLayers.osm.addTo(map);
 
+    const isLoggedIn = typeof Auth !== "undefined" && Auth.isSessionActive();
+
     document.querySelectorAll('input[name="basemap"]').forEach((radio) => {
         radio.addEventListener("change", (event) => {
             const selected = event.target.value;
@@ -30,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const mapLayers = {};
     const featureData = [];
+    const listLabelToId = new Map();
 
     const createCustomIcon = (iconClass, color) => {
         const markerHtml = `<div style="background-color:${color};width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);opacity:0.7;font-size:0.6rem;"><i class="fa-solid ${iconClass}"></i></div>`;
@@ -348,10 +351,58 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     };
 
+    const buildFacilityTabs = () => {
+        const tabsContainer = document.getElementById("facility-tabs");
+        const tabContentContainer = document.getElementById("facility-tab-content");
+        if (!tabsContainer || !tabContentContainer) return;
+
+        const labels = [];
+        const seen = new Set();
+        for (const lc of CONFIG.layers) {
+            if (lc.requireLogin && !isLoggedIn) continue;
+            if (!lc.listLabel || seen.has(lc.listLabel)) continue;
+            seen.add(lc.listLabel);
+            labels.push(lc.listLabel);
+        }
+
+        if (labels.length === 0) {
+            const card = document.querySelector(".facility-list-card");
+            if (card) card.style.display = "none";
+            return;
+        }
+
+        labels.forEach((label, index) => {
+            const listId = "list-" + index;
+            listLabelToId.set(label, listId);
+
+            const btn = document.createElement("button");
+            btn.className = "tab-btn" + (index === 0 ? " active" : "");
+            btn.dataset.target = listId;
+            btn.textContent = label;
+            tabsContainer.appendChild(btn);
+
+            const ul = document.createElement("ul");
+            ul.id = listId;
+            ul.className = "facility-ul" + (index === 0 ? " active" : "");
+            tabContentContainer.appendChild(ul);
+        });
+
+        tabsContainer.addEventListener("click", (event) => {
+            const btn = event.target.closest(".tab-btn");
+            if (!btn) return;
+            tabsContainer.querySelectorAll(".tab-btn").forEach((item) => item.classList.remove("active"));
+            tabContentContainer.querySelectorAll(".facility-ul").forEach((item) => item.classList.remove("active"));
+            btn.classList.add("active");
+            document.getElementById(btn.dataset.target)?.classList.add("active");
+        });
+    };
+
     const loadLayers = async () => {
         const togglesContainer = document.getElementById("layer-toggles");
+        buildFacilityTabs();
 
         for (const layerConfig of CONFIG.layers) {
+            if (layerConfig.requireLogin && !isLoggedIn) continue;
             try {
                 const response = await fetch(layerConfig.file);
                 const data = await response.json();
@@ -399,11 +450,11 @@ document.addEventListener("DOMContentLoaded", () => {
                             });
                         }
 
-                        if (layerConfig.listTarget) {
+                        if (layerConfig.listLabel && listLabelToId.has(layerConfig.listLabel)) {
                             featureData.push({
                                 name,
                                 layerId: layerConfig.id,
-                                listTarget: layerConfig.listTarget,
+                                listTarget: listLabelToId.get(layerConfig.listLabel),
                                 leafletLayer: layer,
                                 latlng: layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter()
                             });
@@ -480,17 +531,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (event.key === "Enter") {
             performSearch();
         }
-    });
-
-    document.querySelectorAll(".tab-btn").forEach((button) => {
-        button.addEventListener("click", (event) => {
-            document.querySelectorAll(".tab-btn").forEach((item) => item.classList.remove("active"));
-            document.querySelectorAll(".facility-ul").forEach((item) => item.classList.remove("active"));
-
-            const targetId = event.currentTarget.getAttribute("data-target");
-            event.currentTarget.classList.add("active");
-            document.getElementById(targetId)?.classList.add("active");
-        });
     });
 
     document.getElementById("btn-info")?.addEventListener("click", () => {
