@@ -506,8 +506,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         updateFacilityList();
 
-        if (mapLayers.rescue_zones) {
-            map.fitBounds(mapLayers.rescue_zones.getBounds());
+        const fitTargets = CONFIG.layers.filter((lc) => lc.fitBounds && mapLayers[lc.id]);
+        if (fitTargets.length > 0) {
+            let bounds = mapLayers[fitTargets[0].id].getBounds();
+            for (let i = 1; i < fitTargets.length; i += 1) {
+                bounds = bounds.extend(mapLayers[fitTargets[i].id].getBounds());
+            }
+            map.fitBounds(bounds);
         }
     };
 
